@@ -121,7 +121,7 @@ register_client(#jid{luser = LUser,
                     #pushoff_registration{bare_jid = {LUser, LServer}, _='_'},
                 ExistingReg =
                     mnesia:select(pushoff_registration, [{MatchHeadReg, [], ['$_']}]),
-                    ?DEBUG("Existing client: ~p", [ExistingReg]),
+                    ?INFO_MSG("Existing client: ~p", [ExistingReg]),
                 Registration =
                     case ExistingReg of
                         [] ->
@@ -172,7 +172,7 @@ unregister_client({LUser, LServer}, Timestamp) ->
                     [] -> error;
 
                     [Reg] ->
-                        ?DEBUG("+++++ deleting registration of user ~p",
+                        ?INFO_MSG("+++++ deleting registration of user ~p",
                                [Reg#pushoff_registration.bare_jid]),
                         mnesia:delete_object(Reg),
                         ok
@@ -180,7 +180,7 @@ unregister_client({LUser, LServer}, Timestamp) ->
         end,
     case mnesia:transaction(F) of
         {aborted, Reason} ->
-            ?DEBUG("+++++ unregister_client error: ~p", [Reason]),
+            ?INFO_MSG("+++++ unregister_client error: ~p", [Reason]),
             {error, ?ERR_INTERNAL_SERVER_ERROR};
         {atomic, error} -> error;
         {atomic, Result} -> {unregistered, Result}
@@ -210,13 +210,13 @@ on_offline_message(From, To = #jid{luser = LUser, lserver = LServer}, Stanza) ->
     TransactionResult = mnesia:transaction(Transaction),
     case TransactionResult of
         {atomic, []} ->
-            ?DEBUG("+++++ mod_pushoff dispatch: ~p is not_subscribed", [To]),
+            ?INFO_MSG("+++++ mod_pushoff dispatch: ~p is not_subscribed", [To]),
             ok;
         {atomic, [Reg]} ->
             dispatch(From, Reg, Stanza),
             ok;
         {aborted, Error} ->
-            ?DEBUG("+++++ error in on_offline_message: ~p", [Error]),
+            ?INFO_MSG("+++++ error in on_offline_message: ~p", [Error]),
             ok
     end.
 
@@ -230,7 +230,7 @@ dispatch(From,
         ignore -> ok;
         Payload ->
             DisableArgs = {UserBare, Timestamp},
-            ?DEBUG("PUSH to user<~p>, with token<~p>, payload<~p>, backendId<~p>", [UserBare, Token, Payload, BackendId]),
+            ?INFO_MSG("PUSH to user<~p>, with token<~p>, payload<~p>, backendId<~p>", [UserBare, Token, Payload, BackendId]),
             gen_server:cast(backend_worker(BackendId),
                              {dispatch, UserBare, Payload, Token, DisableArgs}),
             ok
@@ -386,7 +386,7 @@ start(Host, _Opts) ->
 
     Bs = backend_configs(Host),
     Results = [start_worker(Host, B) || B <- Bs],
-    ?DEBUG("++++++++ Added push backends: ~p resulted in ~p", [Bs, Results]),
+    ?INFO_MSG("++++++++ Added push backends: ~p resulted in ~p", [Bs, Results]),
     ok.
 
 -spec(stop(Host :: binary()) -> any()).
@@ -418,7 +418,7 @@ parse_backend(Opts) ->
         case lists:member(RawType, [apns, fcm]) of
             true -> RawType
         end,
-    ?DEBUG("IN PARSE_BACKEND RawType <~p>", [RawType]),
+    ?INFO_MSG("IN PARSE_BACKEND RawType <~p>", [RawType]),
     Gateway = proplists:get_value(gateway, Opts),
     CertFile = 
     case Type of

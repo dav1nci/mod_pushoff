@@ -185,9 +185,19 @@ handle_info(send, #state{pending_list = PendingList,
                     Body = case Head of 
                         {_MessageId, {_, _Payload, _Token, _}} ->
                             [_, {body, _Body}, {from, _From}] = _Payload,
-                            PushMessage = {struct, [{to, _Token}, {data, {struct, [{body, _Body}, {title, _From}]}}]},
+                            PushMessage = {struct, [
+                                                    {to,           _Token},
+                                                    {data,         {struct, [
+                                                                             {body, _Body},
+                                                                             {title, _From}
+                                                                            ]}},
+                                                    {notification, {struct, [
+                                                                             {body, _Body},
+                                                                             {title, _From}
+                                                                            ]}}
+                                                   ]},
                             EncodedMessage = iolist_to_binary(mochijson2:encode(PushMessage)),
-                            ?DEBUG("AFTER mochijson2:encode() MESSAGE IS <~p>", [EncodedMessage]),
+                            ?INFO_MSG("AFTER mochijson2:encode() MESSAGE IS <~p>", [EncodedMessage]),
                             EncodedMessage;
                         _ ->
                             ?ERROR_MSG("no pattern for matching for pending list", []),
@@ -199,7 +209,7 @@ handle_info(send, #state{pending_list = PendingList,
                     Response = httpc:request(post, Request, HTTPOptions, Options),
                     case Response of
                               {ok, {{_, StatusCode5xx, _}, _, ErrorBody5xx}} when StatusCode5xx >= 500, StatusCode5xx < 600 ->
-                                    ?DEBUG("recoverable FCM error: ~p, retrying...", [ErrorBody5xx]),
+                                    ?INFO_MSG("recoverable FCM error: ~p, retrying...", [ErrorBody5xx]),
                                     {NewPendingList1, NewRetryList} = pending_to_retry(NewPendingList, RetryList),
                                     {NewRetryTimer, Timestamp} = restart_retry_timer(RetryTimer),
                                     State#state{out_socket = error,
@@ -211,7 +221,7 @@ handle_info(send, #state{pending_list = PendingList,
                                                 retry_timestamp = Timestamp};
 %==============================================================================================================
                               {ok, {{_, 200, _}, _, ResponseBody}} ->
-                                    ?DEBUG("+++++ raw response: StatusCode = ~p, Body = ~p", [200, ResponseBody]),
+                                    ?INFO_MSG("+++++ raw response: StatusCode = ~p, Body = ~p", [200, ResponseBody]),
                                     Timestamp = erlang:timestamp(),
                                     NewPendingTimer = erlang:send_after(?PENDING_INTERVAL, self(),
                                                                         {pending_timeout, Timestamp}),
@@ -223,7 +233,7 @@ handle_info(send, #state{pending_list = PendingList,
                                                 pending_timestamp = Timestamp};
 
                               {ok, {{_, _, _}, _, ResponseBody}} ->
-                                    ?DEBUG("non-recoverable FCM error: ~p, delete registration", [ResponseBody]),
+                                    ?INFO_MSG("non-recoverable FCM error: ~p, delete registration", [ResponseBody]),
                                     {NewPendingList1, NewRetryList} = pending_to_retry(NewPendingList, RetryList),
                                     {NewRetryTimer, Timestamp} = restart_retry_timer(RetryTimer),
                                     State#state{out_socket = error,
@@ -246,14 +256,14 @@ handle_info(send, #state{pending_list = PendingList,
                                                 message_id = NewMessageId,
                                                 retry_timestamp = Timestamp};
                               _ -> 
-                                  ?DEBUG("httpc:request() does not matching with any of patterns!!!", [])
+                                  ?INFO_MSG("httpc:request() does not matching with any of patterns!!!", [])
 
                     end
             end,
     {noreply, NewState};
 
 handle_info(Info, State) ->
-    ?DEBUG("+++++++ mod_pushoff_fcm received unexpected signal ~p", [Info]),
+    ?INFO_MSG("+++++++ mod_pushoff_fcm received unexpected signal ~p", [Info]),
     {noreply, State}.
 
 handle_call(_Req, _From, State) -> {reply, {error, badarg}, State}.

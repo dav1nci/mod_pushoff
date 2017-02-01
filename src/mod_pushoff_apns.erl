@@ -214,7 +214,7 @@ handle_info(send, #state{certfile = CertFile,
                                         retry_timestamp = Timestamp};
 
                         ok ->
-                            ?DEBUG("sending to APNS successful: ~p", [length(NewPendingList)]),
+                            ?INFO_MSG("sending to APNS successful: ~p", [length(NewPendingList)]),
                             Timestamp = erlang:timestamp(),
                             NewPendingTimer = erlang:send_after(?PENDING_INTERVAL, self(),
                                                                 {pending_timeout, Timestamp}),
@@ -230,7 +230,7 @@ handle_info(send, #state{certfile = CertFile,
     {noreply, NewState};
 
 handle_info(Info, State) ->
-    ?DEBUG("+++++++ mod_pushoff_apns received unexpected signal ~p", [Info]),
+    ?INFO_MSG("+++++++ mod_pushoff_apns received unexpected signal ~p", [Info]),
     {noreply, State}.
 
 handle_call(_Req, _From, State) -> {reply, {error, badarg}, State}.
